@@ -1,0 +1,7 @@
+site	y	x
+Le_Crotoy	50.22169	1.60412
+Saint_Brieuc	48.52656	-2.71607
+Pont_Mahe	47.443195	-2.451658
+Saint_Brevin	47.26848	-2.16473
+Aytre	46.12579	-1.12843
+Fouras	45.98416	-1.09344
