@@ -1,6 +1,6 @@
 ################################################################################
 
-setwd("~/Documents/MAC_DUI/SBD_MS")
+setwd("Path_to_datafiles")
 library("radiator")
 
 fm<-ape::read.dna(file="MACEU_cox1f_males_females.fasta",format="fasta")
