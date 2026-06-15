@@ -1,4 +1,4 @@
-setwd("~/Documents/MAC_DUI/SBD_MS/analyses_eric/IBD/")
+setwd("Path_to_your_datafiles")
 
 # geographic data
 
@@ -21,8 +21,10 @@ text(-3.5, 46, "Bay of\nBiscay", font=3)
 text(-1.528188, 50.20050, "English Channel", font=3)
 
 
-
-########## slope comparison ###############
+#############################
+# Sex-specific IBD analysis
+#############################
+##### Phist values estimated using Arlequin
 fst_f<-"0.00000
 0.10564 0.00000				
 0.21094	0.13146 0.00000			
@@ -35,7 +37,6 @@ mat_fst_f[upper.tri(mat_fst_f)] <- t(mat_fst_f)[upper.tri(mat_fst_f)]
 rownames(mat_fst_f)<-c("CRO","BRI","MAH","BRE","AYT","FOU")
 colnames(mat_fst_f)<-c("CRO","BRI","MAH","BRE","AYT","FOU")
 mat_fst_f
-mat_fst_f<-mat_fst_f/(1-mat_fst_f)
 
 fst_m<-"0.00000
 0.061350 0.00000
@@ -49,115 +50,118 @@ mat_fst_m[upper.tri(mat_fst_f)] <- t(mat_fst_m)[upper.tri(mat_fst_m)]
 rownames(mat_fst_m)<-c("CRO","BRI","MAH","BRE","AYT","FOU")
 colnames(mat_fst_m)<-c("CRO","BRI","MAH","BRE","AYT","FOU")
 mat_fst_m
-mat_fst_m<-mat_fst_m/(1-mat_fst_m)
-
-log_geo_dist<-log(geo_dist)
-
-library(bootstrap)
-library(prabclus)
-library(reshape2)
-
-m_geo<-melt(log_geo_dist)
-geo <- m_geo[m_geo$Var1 != m_geo$Var2,]
 
 
-mfst<-melt(mat_fst_m)
-mfst <- mfst[mfst$Var1 != mfst$Var2,]
 
-ffst<-melt(mat_fst_f)
-ffst <- ffst[ffst$Var1 != ffst$Var2,]
+# Example: mat_fst_m, mat_fst_f, geo_dist already defined
+# Transform FST/(1-FST)
+mat_fst_m <- mat_fst_m / (1 - mat_fst_m)
+mat_fst_f <- mat_fst_f / (1 - mat_fst_f)
 
-fst<-rbind(ffst,mfst)
-#1=F, 2=M
-#fst$sex<-c(rep("1",30),rep("1",30))
-geo<-rbind(geo,geo)
-#geo$sex<-c(rep("1",30),rep("2",30))
- 
-sex<-c(rep("F",30),rep("M",30))
+# Mirror lower triangle to upper
+mat_fst_m[upper.tri(mat_fst_m)] <- t(mat_fst_m)[upper.tri(mat_fst_m)]
+mat_fst_f[upper.tri(mat_fst_f)] <- t(mat_fst_f)[upper.tri(mat_fst_f)]
 
-log_geo_dist <- log(geo_dist+quantile(as.vector(as.dist(geo_dist)),0.25))
-
- 
-H01_reg <- regeqdist(geo$value, fst$value, grouping=sex, groups=c("F","M"))
-
-
-diffreg <- function(dmx1 , dmx2 , dmy1, dmy2){
-  # dmx1, dmx2 = matrices of geographic distances 1 & 2
-  # dmy1, dmy2 = matrices of genetic distances 1 & 2
-  
-  dmxc <- dmyc <- jr <- lmfit <- xvi <- yvi <- list()
-  nc <- sediff <- coefdiff <- pval <- condition <- numeric(0)
-  dmxc[[1]] <- dmx1
-  dmxc[[2]] <- dmx2
-  dmyc[[1]] <- dmy1
-  dmyc[[2]] <- dmy2
-  
-  groups <- c(1,2)
-  
-  for (i in 1:2) {
-    jr[[i]] <- list()
-    # N ind in matrix i
-    nc[i] <- sum(dim(dmxc[[i]])[1])
-    # sous matrice geo en vecteur
-    xvi[[i]] <- as.vector(as.dist(dmxc[[i]]))
-    # sous matrice genet en vecteur
-    yvi[[i]] <- as.vector(as.dist(dmyc[[i]]))
-  }
-  
-  xall <- c(xvi[[1]], xvi[[2]])
-  xcenter <- mean(xall)
-  
-  clm <- jackpseudo <- jackestcl <- jackvarcl <- list()
-  jackse <- jackest <- tstat <- tdf <- numeric(0)
-  for (i in 1:2) {
-    jackpseudo[[i]] <- list()
-    jackestcl[[i]] <- jackvarcl[[i]] <- numeric(0)
-    for (j in 1:2) jackpseudo[[i]][[j]] <- numeric(0)
-  }
-  for (i in 1:2) {
-    #sous matrice geo pondérée
-    xvi[[i]] <- xvi[[i]] - xcenter
-    lmfit[[i]] <- lm(yvi[[i]] ~ xvi[[i]])
-    mm <- model.matrix(~xvi[[i]])
-    condition[i] <- kappa(mm)
-    clm[[i]] <- coef(lmfit[[i]])
-  }
-  for (i in 1:2) for (j in 1:2) jr[[i]][[j]] <- bootstrap::jackknife(1:sum(dim(dmxc[[i]])[1]), regdist, dmx = dmxc[[i]], dmy = dmyc[[i]], xcenter = xcenter, param = j)
-  
-  for (j in 1:2) {
-    for (i in 1:2) if (is.na(jr[[i]][[j]]$jack.se)) 
-      computable <- FALSE
-    coefdiff[j] <- clm[[1]][j] - clm[[2]][j]
-    for (i in 1:2) {
-      for (k in 1:nc[i]) jackpseudo[[i]][[j]][k] <- nc[i] * 
-          clm[[i]][j] - (nc[i] - 1) * jr[[i]][[j]]$jack.values[k]
-      jackestcl[[i]][j] <- mean(jackpseudo[[i]][[j]])
-      jackvarcl[[i]][j] <- var(jackpseudo[[i]][[j]])
-    }
-    jackest[j] <- jackestcl[[1]][j] - jackestcl[[2]][j]
-    jackse[j] <- sqrt(jackvarcl[[1]][j]/nc[1] + jackvarcl[[2]][j]/nc[2])
-    tstat[j] <- jackest[j]/jackse[j]
-    tdf[j] <- jackse[j]^4/((jackvarcl[[1]][j]/nc[1])^2/(nc[1] - 
-                                                          1) + (jackvarcl[[2]][j]/nc[2])^2/(nc[2] - 1))
-    if (tstat[j] > 0) 
-      pval[j] <- 2 * (pt(tstat[j], tdf[j], lower.tail = FALSE))
-    else pval[j] <- 2 * (pt(tstat[j], tdf[j]))
-  }
-  
-  out <- list(pval = pval, coefdiff = coefdiff, condition = condition, 
-              lmfit = lmfit, jr = jr, xcenter = xcenter, tstat = tstat, 
-              tdf = tdf, jackest = jackest, jackse = jackse, jackpseudo = jackpseudo, 
-              groups = groups)
-  class(out) <- "regeqdist"
-  out
+# Function to convert pairwise matrices to long dataframe
+pairwise_df <- function(mat_fst, geo_dist, sex_label){
+  idx <- lower.tri(mat_fst)
+  data.frame(
+    pop1 = rownames(mat_fst)[row(mat_fst)[idx]],
+    pop2 = colnames(mat_fst)[col(mat_fst)[idx]],
+    distance = geo_dist[idx],
+    phist = mat_fst[idx],
+    sex = sex_label
+  )
 }
 
-H_reg <- diffreg(log_geo_dist,log_geo_dist,mat_fst_f,mat_fst_m)
+# Create dataframe for males and females
+df_m <- pairwise_df(mat_fst_m, geo_dist, "Male")
+df_f <- pairwise_df(mat_fst_f, geo_dist, "Female")
 
-#library(emmeans)
+# Combine
+df <- rbind(df_m, df_f)
+df$sex_num <- ifelse(df$sex == "Female", 1, 0)
+df$log_distance <- log(df$distance)
 
-#mod <- lm(mat_fst_f[!is.na(mat_fst_f)] ~ mat_fst_m[!is.na(mat_fst_m)])
-#summary(mod)
+# -------------------
+# 1. Sex-specific slopes
+# -------------------
+lm_male <- lm(phist ~ distance, data = df[df$sex=="Male",])
+lm_female <- lm(phist ~ distance, data = df[df$sex=="Female",])
+
+slope_m <- coef(lm_male)["distance"]
+slope_f <- coef(lm_female)["distance"]
+
+cat("Male slope:", slope_m, "\n")
+#Male slope: 0.000901103 
+cat("Female slope:", slope_f, "\n")
+#Female slope: 0.0004252056 
+
+# -------------------
+# 2. Male:Female dispersal ratio
+# sigma_m / sigma_f = sqrt(slope_f / slope_m)
+# -------------------
+disp_ratio <- sqrt(slope_f / slope_m)
+cat("Male:Female dispersal ratio:", disp_ratio, "\n")
+#Male:Female dispersal ratio: 0.6869297 
+
+# -------------------
+# 3. Combined regression with interaction
+# -------------------
+lm_ibd <- lm(phist ~ distance * sex, data = df)
+summary(lm_ibd)
+
+#Coefficients:
+#.                Estimate Std. Error t value Pr(>|t|)   
+#(Intercept)      -0.0537623  0.0651509  -0.825  0.41677   
+#distance          0.0004252  0.0001195   3.557  0.00147 **
+#  sexMale          -0.0263514  0.0921373  -0.286  0.77714   
+#distance:sexMale  0.0004759  0.0001690   2.815  0.00917 **
+#  ---
+#  Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+#Residual standard error: 0.1405 on 26 degrees of freedom
+#Multiple R-squared:  0.7616,	Adjusted R-squared:  0.7341 
+#F-statistic: 27.69 on 3 and 26 DF,  p-value: 2.963e-08
 
 
-###convert arlequin to genepop (via genind..)
+
+
+# -------------------
+# 4. Permutation test for slope difference
+# -------------------
+set.seed(123)
+nperm <- 9999
+perm_diff <- numeric(nperm)
+
+for(i in 1:nperm){
+  df$sex_perm <- sample(df$sex)
+  
+  lm_m_perm <- lm(phist ~ distance, data = df[df$sex_perm=="Male",])
+  lm_f_perm <- lm(phist ~ distance, data = df[df$sex_perm=="Female",])
+  
+  perm_diff[i] <- coef(lm_m_perm)["distance"] - coef(lm_f_perm)["distance"]
+}
+
+obs_diff <- slope_m - slope_f
+p_perm <- mean(abs(perm_diff) >= abs(obs_diff))
+
+cat("Observed slope difference:", obs_diff, "\n")
+#Observed slope difference: 0.0004758973 
+cat("Permutation p-value:", p_perm, "\n")
+#Permutation p-value: 0.01880188
+# -------------------
+# 5. Optional: visualize
+# -------------------
+
+library(ggplot2)
+ggplot(df, aes(distance, phist, color=sex)) +
+  geom_point(size=3) +
+  geom_smooth(method="lm", se=TRUE) +
+  theme_classic() +
+  labs(
+    x = "Geographic distance (km)",
+    y = expression(Phi[ST] / (1 - Phi[ST])),
+    color = "Sex"
+  )
+
