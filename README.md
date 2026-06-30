@@ -1,6 +1,5 @@
 <!-- badges: start -->
 [![ENA BioProject](https://img.shields.io/badge/ENA-PRJEB115366-blue)](https://www.ebi.ac.uk/ena/browser/view/PRJEB115366)
- DOI: 10.5281/zenodo.21069377
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.21069377.svg)](https://doi.org/10.5281/zenodo.21069377)
 <!-- badges: stop -->
 
